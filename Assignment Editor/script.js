@@ -1,11 +1,18 @@
+//Keeps track of the amount of pages
 var pageNum = 0;
 var boldCheck = true;
+//Used to replace the html of images and videos to markdown syntax
 var replaceStack = [];
-var numVariables = 0;
-var numH1 = 0;
+// var numVariables = 0;
+// var numH1 = 0;
+//Used to keep track the directives to images and videos for future versions
+var bookPath = "";
+//Used to keep track when a form is used
 var noForm = true
 
-//Look at Book Editor for comments as most code is the same
+//Most of this is the same code as the book editor so the book editor will have more specific comments
+
+//Creates new page by appending elements
 function newPage(){
     var page = document.createElement("div");
     page.setAttribute("class", "pageBlock");
@@ -41,10 +48,15 @@ function newPage(){
     pageNum++;
 }
 
+//Collapses the pages with page number currPage
 function collapse(currPage){
+    //Takes the page at currPage and changes its display to the opposite of what it was
+    //Checks if the page being collapsed is a question group and collapses all the questions in the question groups
     if(document.getElementById("page" + currPage).classList.contains("questionGroup")){
+        //Array of all the questions in the question group
         var pageArr = document.getElementById("page" + currPage).getElementsByTagName("div")
         if(pageArr[0] && !(pageArr[0].style.display)){
+            //loop that goes through all the qgroup questions and collapses them
             for(var i = 0; i < pageArr.length; i++){
                 pageArr[i].style.display = 'none'
             }
@@ -58,6 +70,7 @@ function collapse(currPage){
             }  
         }
     }else{
+        //if it is just a page its display gets set to none or block depending on what it was before
         var page = document.getElementById("pageInputText" + currPage);
         
         if(!(page.style.display)){
@@ -70,15 +83,30 @@ function collapse(currPage){
     }
 }
 
+//Goes through all the pages and collapses them
 function unCollapse(){
     for(var i = 0; i < pageNum; i++){
-        var page = document.getElementById("pageInputText" + i);
-        if(page)
-            page.style.display = 'block'
+        
+        if(document.getElementById("page" + i).classList.contains("questionGroup")){
+            //Array of all the questions in the question group
+            var pageArr = document.getElementById("page" + i).getElementsByTagName("div")
+            //Goes through all the questions in a question group and makes them block
+            for(var i = 0; i < pageArr.length; i++){
+                pageArr[i].style.display = 'block'
+            }  
+        }else{
+            var page = document.getElementById("pageInputText" + i);
+            if(page)
+                page.style.display = 'block'
+        }
+
+
     }
 }
 
+//Removes the last page
 function removeLastPage(){
+    //Removes the last page while decrementing the page numbers
     if(pageNum > 0){
         var pages = document.getElementById("input");
         pages.removeChild(pages.childNodes[pageNum--])
@@ -86,34 +114,50 @@ function removeLastPage(){
 }
 
 function printBook(){
+    //Uncollapses the pages so they can be accesed to print
     unCollapse()
+    //Content that gets printed
     var content = ""
+    //Output page where the the content gets appended
     var output = document.getElementById("outputContent");
     content += "!assignmentVariables<br><br>";
     content += variablePrint()
     content += "!endAssignmentVariables<br>";
     content += "!Assignment " + document.getElementById("bookNameIn").value + "<br>";
+    //Goes through the pages to add the content
     for(var i = 0; i < pageNum; i++){
         var page = document.getElementById("page" + i)
+        //Check is the urrent page is a qGroup
         if(page.classList.contains("questionGroup")){
+            //Array with all the questions in the ith qGroup
             var pageArr = page.getElementsByTagName("div")
             content += "!qGroup " + document.getElementById("qGroupNameIn" + i).value + "<br>"
+            //Prints out all the questions in the question group
             for(var j = 0; j < pageArr.length; j++){
-                content += "!Question<br>"
-                var pageContent = pageArr[j].outerHTML
-                pageContent = parse(pageContent);
-                content += pageContent
-                content +="!endQuestion<br>"
+                if(pageArr[j].id.startsWith("pageInputText")){
+                    content += "!Question<br>"
+                    var pageContent = pageArr[j].outerHTML
+                    pageContent = parse(pageContent);
+                    var replaceStackCopy = [...replaceStack]
+                    // console.log([...replaceStack])
+                    while(replaceStackCopy.length > 0){
+                        pageContent = pageContent.replace(replaceStackCopy.shift(), replaceStackCopy.shift());
+                    }
+                    content += pageContent
+                    content +="!endQuestion<br>"
+                }
+
             }
             content += "!endQGroup<br>"
         }else{
             content += "!Question " + document.getElementById("pageNameIn" + i).value + "<br>"
             var pageContent = document.getElementById("pageInputText" + i).outerHTML
             pageContent = parse(pageContent);
-            // console.log(pageContent)
-            // while(replaceStack.length > 0){
-            //     pageContent = pageContent.replace(replaceStack.shift(), replaceStack.shift());
-            // }
+            var replaceStackCopy = [...replaceStack]
+            // console.log([...replaceStack])
+            while(replaceStackCopy.length > 0){
+                pageContent = pageContent.replace(replaceStackCopy.shift(), replaceStackCopy.shift());
+            }
     
             content += pageContent
             content += "!endQuestion<br>"
@@ -122,6 +166,7 @@ function printBook(){
     output.innerHTML = content;
 }
 
+//Makes all the replacements to markdown syntax
 function parse(pageContent){
     pageContent = pageContent.replaceAll("<b>", "**");
     pageContent = pageContent.replaceAll("</b>", "**");
@@ -143,14 +188,8 @@ function parse(pageContent){
     return pageContent;
 }
 
+//Surrounds highlighted text with the checkpoint syntax
 function addCheckpoint(){
-    // if(document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1))){
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // }else{
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1));
-    // }
-    // var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // page.innerHTML = page.innerHTML + "!checkpoint<br><br>!endCheckpoint"
     var selection= window.getSelection().getRangeAt(0);
     var selectedText = selection.extractContents();
     var div= document.createElement("div");
@@ -170,15 +209,10 @@ function addCheckpoint(){
     // console.log(window.getSelection())
 }
 
-function multipleChoice(){
-    // var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // if(document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1))){
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // }else{
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1));
-    // }
+//The next few functions create a form for the function name, then have the user submit information in the form
+//With the information in the form the appropriate markdown syntax is created and used to replace the form
 
-    // lock()
+function multipleChoice(){
 
     var form = document.createElement("form")
     form.setAttribute("id", "MCForm");
@@ -244,16 +278,15 @@ function multipleChoice(){
     submit.setAttribute("value", "Submit");
     form.appendChild(submit)
 
-    // page.appendChild(form)
-    // console.log(window.getSelection())
+    //Appends the form where the users cursor was
     var range = window.getSelection().getRangeAt(0);
+    //Checks if another form is already open and if the cursor is in an editable page 
     if(noForm && isInPage(window.getSelection().anchorNode)){
         lock()
         range.deleteContents()
         range.insertNode(form)
         numOIn.focus()
     }
-    // console.log(form)
 }
 
 function MCSubmit(){
@@ -277,8 +310,7 @@ function MCSubmit(){
     mc += "!endMultipleChoice<br>!score " + score + "<br>!feedback<br>!endFeedback"
 
 
-    // page.removeChild(form)
-    // page.innerHTML = page.innerHTML+ mc
+    //The syntax for the multiple choice is appended to a div which is then appended to the page where the cursor is
     var div = document.createElement("div")
     div.innerHTML = mc;
     var range = window.getSelection().getRangeAt(0);
@@ -288,19 +320,8 @@ function MCSubmit(){
     unlock()
 }
 
+//This has a bunch of forms because each radio button makes a new form
 function answerBox(){
-    // var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // if(document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1))){
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    //     var pageInNum = window.getSelection().anchorNode.parentElement.id.slice(-1);
-    // }else{
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1));
-    //     var pageInNum = window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1);
-    // }
-
-    // var pageInNum = window.getSelection().anchorNode.parentElement.id.slice(-1);
-
-    // lock()
     var pageInNum = 0
 
     var form = document.createElement("form")
@@ -346,7 +367,9 @@ function answerBox(){
     form.appendChild(document.createElement("br"))
 
     // page.appendChild(form)
+    //Appends the form where the users cursor was
     var range = window.getSelection().getRangeAt(0);
+    //Checks if another form is already open and if the cursor is in an editable page 
     if(noForm && isInPage(window.getSelection().anchorNode)){
         lock()
         range.deleteContents()
@@ -530,7 +553,7 @@ function ansBoxSub(abs, tol, text, pageInNum){
         document.getElementById("absValIn").focus()
         var id = document.getElementById("absIDIn").value;
         var score = document.getElementById("absScoreIn").value
-        var ab = "!ans numeric:" + val + ":absulute " + id + "<br>!score " + score + "<br>!feedback<br>!endFeedback"
+        var ab = "!ans numeric:" + val + ":absolute " + id + "<br>!score " + score + "<br>!feedback<br>!endFeedback"
         // page.innerHTML = page.innerHTML + ab
         // page.removeChild(document.getElementById("ABForm"));
         // page.removeChild(form);
@@ -565,12 +588,6 @@ function ansBoxSub(abs, tol, text, pageInNum){
 }
 
 function table(){
-    // var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // if(document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1))){
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // }else{
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1));
-    // }
 
     // lock()
     var form = document.createElement("form")
@@ -660,11 +677,6 @@ function submitTable(){
 }
 
 function image(){
-    // if(document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1))){
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // }else{
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1));
-    // }
 
     // lock()
     var form = document.createElement("form")
@@ -709,24 +721,30 @@ function image(){
 }
 
 function submitImage(){
-    // if(document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1))){
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // }else{
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1));
-    // }
+    //Currently uses placeholders to fill in the image then the replaceStack stack to repace the html with mardown syntac when printed
     var form = document.getElementById("imgForm")
     document.getElementById("altIn").focus()
     var alt = document.getElementById("altIn").value
     var img = document.getElementById("imgIn").value
 
+    //Creates the markdown syntax
     var imgPrint = "![" + alt + "](" + img + ")"
 
-    // var imgHtml = document.createElement("img")
-    // imgHtml.setAttribute("src",img)
-    // imgHtml.setAttribute("alt",alt)
+    //Initially this would be used to keep track of the path to the image then the image would be used instead of the place holder but there was not enough time in the work term to implement this idea
+    bookPath = "../bookRoot/" + document.getElementById("bookNameIn").value + "/res/"
+    var src = bookPath + img
+    console.log(src)
 
-    // replaceStack.push(imgHtml.outerHTML)
-    // replaceStack.push(imgPrint)
+    //Uses a place holder for the image to give the user a sense of how their image would look in the book
+    var imgHtml = document.createElement("img")
+    imgHtml.setAttribute("src", src)
+    // imgHtml.setAttribute("src","https://papers.co/wp-content/uploads/papers.co-nk50-tree-nature-solo-nature-green-red-1-wallpaper-300x300.jpg")
+    imgHtml.setAttribute("alt",alt)
+
+
+    //Appends the repacements to be replaced when printed
+    replaceStack.push(imgHtml.outerHTML)
+    replaceStack.push(imgPrint)
 
     // page.innerHTML = page.innerHTML + imgPrint
     // // page.appendChild(imgHtml)
@@ -734,16 +752,11 @@ function submitImage(){
     var range = window.getSelection().getRangeAt(0);
     range.deleteContents()
     form.parentNode.removeChild(form)
-    range.insertNode(document.createTextNode(imgPrint))
+    range.insertNode(imgHtml)
     unlock()
 }
 
 function video(){
-    // if(document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1))){
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // }else{
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1));
-    // }
 
     // lock()
     var form = document.createElement("form")
@@ -799,12 +812,6 @@ function video(){
 }
 
 function submitVideo(){
-    // var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // if(document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1))){
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // }else{
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1));
-    // }
 
     var alt = document.getElementById("altVidIn").value;
     document.getElementById("altVidIn").focus()
@@ -812,24 +819,47 @@ function submitVideo(){
     var vid = document.getElementById("vidIn").value;
     var form = document.getElementById("vidForm")
 
-    var vidText = "[![" + alt + "(" + thum + ")](" + vid + ")";
+    var vidText = "[![" + alt + "](" + thum + ")](" + vid + ")";
     // page.innerHTML = page.innerHTML + vidText
     // page.removeChild(document.getElementById("vidForm"))
+
+
+
+    //Initially this would be used to keep track of the path to the image then the image would be used instead of the place holder but there was not enough time in the work term to implement this idea
+    bookPath = "../bookRoot/" + document.getElementById("bookNameIn").value + "/res/"
+    var src = bookPath + vid
+    var poster = bookPath + thum
+    console.log(src)
+
+    //Uses a place holder for the image to give the user a sense of how their image would look in the book
+    var vidHtml = document.createElement("video")
+    vidHtml.setAttribute("src", src)
+    vidHtml.setAttribute("controls", "controls")
+    vidHtml.setAttribute("poster", poster)
+    vidHtml.setAttribute("alt",alt)
+
+    // //Same idea as the image where currently there is a place holder but in later versions it would use a path to the video
+    // var imgHtml = document.createElement("img")
+    // imgHtml.setAttribute("src","https://images.ctfassets.net/hrltx12pl8hq/3MbF54EhWUhsXunc5Keueb/60774fbbff86e6bf6776f1e17a8016b4/04-nature_721703848.jpg?fit=fill&w=480&h=270")
+    // imgHtml.setAttribute("alt",alt)
+
+    // var vidHtml = document.createElement("video")
+    // vidHtml.setAttribute("src", )
+
+    // replaceStack.push(imgHtml.outerHTML)
+    replaceStack.push(vidHtml.outerHTML)
+    replaceStack.push(vidText)
+
     var range = window.getSelection().getRangeAt(0);
     range.deleteContents()
     form.parentNode.removeChild(form)
-    range.insertNode(document.createTextNode(vidText))
+    // range.insertNode(imgHtml)
+    range.insertNode(vidHtml)
     unlock()
 
 }
 
 function inLink(){
-    // var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // if(document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1))){
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // }else{
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1));
-    // } 
 
     // lock()
     var form = document.createElement("form")
@@ -874,12 +904,6 @@ function inLink(){
 }
 
 function submitLink(){
-    // var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // if(document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1))){
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.id.slice(-1));
-    // }else{
-    //     var page = document.getElementById("pageInputText" + window.getSelection().anchorNode.parentElement.parentElement.id.slice(-1));
-    // }
     document.getElementById("linkTextIn").focus()
     var form = document.getElementById("linkForm")
 
